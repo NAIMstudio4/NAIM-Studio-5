@@ -3983,7 +3983,7 @@ body.nw-swap-mode .nw-shelf-card{opacity:.4; pointer-events:none;}
         <!-- STEPS -->
         <div class="param-field">
           <span class="param-lbl">STEPS</span>
-          <input class="param-inp" type="number" id="steps" value="28" min="1" max="50" oninput="syncSteps(this.value)">
+          <input class="param-inp" type="number" id="steps" value="28" min="1" max="50" oninput="typeSteps(this.value)" onblur="blurSteps()">
         </div>
 
         <!-- PROMPT GUIDANCE (CFG + Variety+) -->
@@ -3995,7 +3995,7 @@ body.nw-swap-mode .nw-shelf-card{opacity:.4; pointer-events:none;}
               <span class="param-variety-txt" id="varietyTxt">Variety+</span>
             </label>
           </div>
-          <input class="param-inp" type="number" id="cfgScale" value="5" min="1" max="20" step="0.5" oninput="syncCfg(this.value)">
+          <input class="param-inp" type="number" id="cfgScale" value="5" min="1" max="20" step="0.5" oninput="typeCfg(this.value)" onblur="blurCfg()">
         </div>
 
         <!-- SAMPLER -->
@@ -4017,7 +4017,7 @@ body.nw-swap-mode .nw-shelf-card{opacity:.4; pointer-events:none;}
           <div class="pp-collapsible-body">
             <div class="param-field">
               <span class="param-lbl">PROMPT GUIDANCE RESCALE</span>
-              <input class="param-inp" type="number" id="cfgRescale" value="0.4" min="0" max="1" step="0.05" oninput="syncCfgRescale(this.value)">
+              <input class="param-inp" type="number" id="cfgRescale" value="0.4" min="0" max="1" step="0.05" oninput="typeCfgRescale(this.value)" onblur="blurCfgRescale()">
               <div class="param-hint">V4/V4.5 권장: 0.4 · V3: 0</div>
             </div>
             <div class="param-field">
@@ -4048,7 +4048,7 @@ body.nw-swap-mode .nw-shelf-card{opacity:.4; pointer-events:none;}
                 </div>
                 <div class="param-field">
                   <span class="param-lbl">UNCOND SCALE</span>
-                  <input class="param-inp" type="number" id="uncondNum" value="0" min="0" max="1.5" step="0.01" oninput="syncUncond(this.value)">
+                  <input class="param-inp" type="number" id="uncondNum" value="0" min="0" max="1.5" step="0.01" oninput="typeUncond(this.value)" onblur="blurUncond()">
                 </div>
               </div>
             </div><!-- /legacy -->
@@ -9040,6 +9040,32 @@ function _syncParam(id, val, min, max, dflt, isInt){
   if(el) el.value = v;
   saveSettings();
 }
+/* Phase 151 — 타이핑 중 경로 분리.
+   버그: oninput 마다 _syncParam 이 clamp 후 el.value 를 되써서
+     ① 값을 지우면 빈문자→NaN→||dflt 로 즉시 기본값 복귀(지워지지 않음)
+     ② 남은 기본값 뒤에 타이핑 → 5+7=57 → clamp → 20. 결국 dflt/max 만 입력됨.
+   해결: 타이핑 중에는 되쓰기 없이 유효값만 저장하고, 정리(clamp/기본값)는 blur 에서. */
+function _typeParam(id, val, min, max, dflt, isInt){
+  const s = String(val).trim();
+  if(s === ''){ saveSettings(); return; }          // 비우는 중 — 건드리지 않음
+  const n = isInt ? parseInt(s) : parseFloat(s);
+  if(!isFinite(n)){ return; }                      // '-' '.' 등 입력 중간 상태
+  saveSettings();                                  // 유효 숫자면 저장만(되쓰기 X)
+}
+function _blurParam(id, min, max, dflt, isInt){
+  const el = document.getElementById(id);
+  if(!el) return;
+  _syncParam(id, el.value, min, max, dflt, isInt); // 포커스 떠날 때 정리
+}
+function typeSteps(val){ _typeParam('steps', val, 1, 50, 28, true); }
+function typeCfg(val){ _typeParam('cfgScale', val, 1, 20, 5, false); }
+function typeCfgRescale(val){ _typeParam('cfgRescale', val, 0, 1, 0.4, false); }
+function typeUncond(val){ _typeParam('uncondNum', val, 0, Infinity, 0, false); }
+function blurSteps(){ _blurParam('steps', 1, 50, 28, true); }
+function blurCfg(){ _blurParam('cfgScale', 1, 20, 5, false); }
+function blurCfgRescale(){ _blurParam('cfgRescale', 0, 1, 0.4, false); }
+function blurUncond(){ _blurParam('uncondNum', 0, Infinity, 0, false); }
+
 function syncSteps(val){ _syncParam('steps', val, 1, 50, 28, true); }
 function syncCfg(val){ _syncParam('cfgScale', val, 1, 20, 5, false); }
 function syncCfgRescale(val){ _syncParam('cfgRescale', val, 0, 1, 0, false); }
