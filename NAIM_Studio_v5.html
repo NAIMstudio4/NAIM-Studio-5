@@ -411,6 +411,7 @@ select.inp{cursor:pointer;}
 /* Phase 31 — 모바일 모델 선택 70% (140px → 98px) */
 @media (max-width: 1023px), (pointer: coarse){
   .model-sel{max-width:98px;font-size:10px;}
+  .genbar-main .btn-keypick{font-size:11px;}
 }
 .api-key-input{
   flex:0 1 auto;
@@ -2544,11 +2545,76 @@ select.param-inp{
 
 /* ▶ 생성 시작 — 메인 액션 */
 .genbar-main .btn-gen{
-  width:100%;
+  flex:8;
+  min-width:0;
   font-size:14px;
   letter-spacing:.12em;
   gap:6px;
+  border-top-left-radius:0;
+  border-bottom-left-radius:0;
 }
+/* Phase 153 — 생성 버튼을 2:8 로 자름. 앞 2 = API 키 선택(누르면 위로 목록),
+   뒤 8 = 기존 생성. 같은 btn-acc 라 하나의 버튼을 나눈 것처럼 보인다. PC·모바일 공통.
+   생성 시점의 키가 스냅샷으로 고정되므로 누르기 직전 계정 선택이 자연스럽다. */
+.genbar-main{ position:relative; }
+.genbar-main .btn-keypick{
+  position:relative;
+  flex:2;
+  min-width:0;
+  font-size:12px;
+  padding:0 4px;
+  letter-spacing:0;
+  border-top-right-radius:0;
+  border-bottom-right-radius:0;
+  overflow:hidden;
+  white-space:nowrap;
+}
+/* 두 조각 사이 경계선 — 잘린 느낌 */
+.genbar-main .btn-keypick::after{
+  content:'';
+  position:absolute;
+  right:0;top:18%;bottom:18%;
+  width:1px;
+  background:rgba(0,0,0,.28);
+}
+/* Phase 153 — API 키 관리 전용 모달 */
+#keyMgrModal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:9880;opacity:0;pointer-events:none;transition:opacity .2s;}
+#keyMgrModal.open{opacity:1;pointer-events:all;}
+#keyMgrBox{background:var(--panel);border:1px solid var(--b2);border-radius:6px;width:min(420px,92vw);max-height:82vh;display:flex;flex-direction:column;overflow:hidden;}
+#keyMgrHdr{padding:10px 14px;background:var(--card2);border-bottom:1px solid var(--b1);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+#keyMgrBody{padding:12px 14px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;}
+
+#keyPickPanel{
+  position:fixed;
+  min-width:140px;
+  max-height:240px;
+  overflow-y:auto;
+  background:var(--panel);
+  border:1px solid var(--b2);
+  border-radius:6px;
+  box-shadow:0 -6px 22px rgba(0,0,0,.7);
+  display:none;
+  flex-direction:column;
+  padding:4px;
+  gap:2px;
+  z-index:9600;
+}
+#keyPickPanel.open{ display:flex; }
+.kp-item{
+  background:var(--card);
+  border:1px solid var(--b1);
+  border-radius:4px;
+  padding:7px 10px;
+  font-size:11px;
+  color:var(--t2);
+  cursor:pointer;
+  text-align:left;
+  transition:all .12s;
+  white-space:nowrap;
+}
+.kp-item:hover{ background:var(--card2); border-color:var(--acc); color:var(--t1); }
+.kp-item.on{ border-color:var(--acc); color:var(--acc); font-weight:600; }
+.kp-item .kp-sub{ color:var(--t3); font-size:10px; margin-left:4px; }
 
 /* ⏸ ⏹ 제어 버튼 (정사각, 아이콘) */
 .genbar-ctrl .tool-btn.pause{color:var(--yellow);}
@@ -3724,17 +3790,19 @@ body.nw-swap-mode .nw-shelf-card{opacity:.4; pointer-events:none;}
         </select>
       </div>
       <div class="title-center">
-        <span class="lbl api-key-row">API KEY</span>
+        <!-- Phase 153 — 키 입력/표시는 키 관리 모달로 일원화.
+             #apiKey 는 "선택된 키" 를 담는 값 그릇으로만 유지(생성·ANLAS 가 여기서 읽음).
+             화면 노출과 직접 편집 경로만 제거 — readonly + 숨김. -->
         <input
           id="apiKey"
-          class="inp api-key-row api-key-input"
+          class="api-key-input"
           type="password"
-          placeholder="NovelAI Bearer Token"
+          readonly
+          tabindex="-1"
+          aria-hidden="true"
           autocomplete="new-password"
-          oninput="onApiKeyChange()">
-        <span class="pill pill-off api-key-row" id="apiPill">미입력</span>
-        <select class="inp api-key-row" id="apiKeySel" onchange="apiKeySelect(this.value)"
-                title="API 키 전환" style="width:auto;font-size:11px;"></select>
+          style="display:none;">
+        <span class="pill pill-off api-key-row" id="apiPill" style="display:none;">미입력</span>
         <div class="anlas-badge api-key-row" id="anlasBox" style="display:none;">
           <span class="anlas-lbl">ANLAS</span>
           <span class="anlas-val" id="anlasVal">—</span>
@@ -3857,6 +3925,9 @@ body.nw-swap-mode .nw-shelf-card{opacity:.4; pointer-events:none;}
         </button>
       </div>
       <div class="genbar-main">
+        <button class="btn btn-acc btn-keypick" id="btn-keypick" onclick="toggleKeyPick(event)" title="생성에 사용할 API 키">
+          <span id="btn-keypick-text">키1</span>
+        </button>
         <button class="btn btn-acc btn-gen" data-tour-key="gen.button" id="btn-gen" onclick="NAIM.gen.onGenerateClick()" title="생성 시작">
           <span id="btn-gen-text">▶ 생성 시작</span>
         </button>
@@ -4292,11 +4363,10 @@ body.nw-swap-mode .nw-shelf-card{opacity:.4; pointer-events:none;}
     <!-- Phase 37 — API 키 입력 (cfg-panel 최상단) -->
     <div class="cfg-section">
       <div style="font-size:10px;color:var(--acc);letter-spacing:.08em;padding:6px 0 4px;border-bottom:1px solid var(--b1);margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;">🔑 API 키<button class="help-btn-hideonly" onclick="NAIM.tour.startSettingsTour()" title="설정 둘러보기" style="background:none;border:none;color:var(--acc);cursor:pointer;font-size:12px;padding:0 2px;line-height:1;">❓</button></div>
-      <div id="apiKeyList"></div>
-      <button class="btn btn-ghost btn-sm" id="apiKeyAddBtn" onclick="apiKeyAdd()" style="width:100%;height:28px;margin-top:6px;font-size:11px;">＋ 키 추가</button>
-      <div class="cfg-hint">여러 키를 저장해두고 상단에서 전환할 수 있습니다.</div>
+      <button class="btn btn-ghost btn-sm" id="apiKeyMgrBtn" data-tour-key="apikey" onclick="openKeyMgr()" style="width:100%;height:30px;font-size:11px;">🔑 API 키 관리</button>
+      <div class="cfg-hint">키 추가·삭제·전환은 관리 창에서 합니다. 생성바에서도 바로 전환할 수 있습니다.</div>
       <input
-        data-tour-key="apikey" id="apiKeyMob"
+        id="apiKeyMob"
         class="inp"
         type="password"
         placeholder="NovelAI Bearer Token"
@@ -4592,6 +4662,27 @@ body.nw-swap-mode .nw-shelf-card{opacity:.4; pointer-events:none;}
      내용:
        - 대기열 간격 (0.1 ~ 10초, 디폴트 2.0)
        - 자동 N장 생성 (즉시 N개 큐 적재 — v4 isCont 동일 동작) -->
+<!-- Phase 153 — API 키 관리 전용 모달 (생성바 키 팝오버 → "키 관리" 진입) -->
+<div id="keyMgrModal" data-ov-click-root="1" onclick="_overlayClick(event, ()=>closeKeyMgr())">
+  <div id="keyMgrBox" onclick="event.stopPropagation()">
+    <div id="keyMgrHdr">
+      <span style="font-size:12px;font-weight:600;letter-spacing:.12em;color:var(--t2);">🔑 API 키 관리</span>
+      <button class="btn btn-ghost btn-sm" onclick="closeKeyMgr()" style="height:26px;padding:0 9px;">✕</button>
+    </div>
+    <div id="keyMgrBody">
+      <div id="apiKeyList"></div>
+      <button class="btn btn-ghost btn-sm" onclick="apiKeyAdd()" style="width:100%;height:30px;font-size:11px;">＋ 키 추가</button>
+      <div style="font-size:10px;color:var(--t3);line-height:1.6;">
+        이름을 누르면 그 키를 사용합니다. 생성 시점의 키가 대기열에 저장되므로,
+        생성 중에 키를 바꿔도 이미 걸린 작업은 원래 키로 완료됩니다.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Phase 153 — API 키 선택 팝오버. .room 이 overflow:hidden 이라 생성바 안에 두면 잘림 → 밖으로 뺌. -->
+<div id="keyPickPanel"></div>
+
 <div id="delayPanel" data-open="false">
   <div class="delay-panel-head">
     <span class="delay-panel-title">⏱ 예약 / 자동 생성</span>
@@ -15155,14 +15246,63 @@ function apiKeyDel(i){
   _apiKeysRender();
 }
 /* 상단 전환 셀렉트 — 키 2개 이상일 때만 노출 */
+/* 생성 버튼 앞 2 조각 — 현재 키 이름 표시 + 누르면 위로 목록 */
 function _apiKeysRenderSel(){
-  const sel = document.getElementById('apiKeySel');
-  if(!sel) return;
-  sel.style.display = '';
-  sel.innerHTML = _apiKeys.map((k, i) =>
-    `<option value="${i}"${i === _apiKeyIdx ? ' selected' : ''}>${k.name}${k.key ? '' : ' (빈칸)'}</option>`
-  ).join('');
+  const lbl = document.getElementById('btn-keypick-text');
+  if(lbl) lbl.textContent = _apiKeys[_apiKeyIdx]?.name || '키1';
+  const panel = document.getElementById('keyPickPanel');
+  if(!panel) return;
+  if(!_apiKeys.length){
+    // 방어: 목록이 비면 최소 1개 슬롯을 만들어 준다(빈 패널로 보이는 것 방지)
+    _apiKeys = [{ name:'키1', key:'' }];
+    _apiKeyIdx = 0;
+    _apiKeysSave();
+  }
+  panel.innerHTML = _apiKeys.map((k, i) =>
+    `<div class="kp-item${i === _apiKeyIdx ? ' on' : ''}" onclick="apiKeySelect(${i});closeKeyPick();">${k.name}${k.key ? '' : '<span class="kp-sub">빈칸</span>'}</div>`
+  ).join('') + `<div class="kp-item" onclick="closeKeyPick();openKeyMgr();" style="color:var(--t3);">⚙ 키 관리…</div>`;
 }
+/* 키 관리 모달 */
+function openKeyMgr(){
+  _apiKeysRender();
+  const m = document.getElementById('keyMgrModal');
+  if(m) m.classList.add('open');
+}
+function closeKeyMgr(){
+  const m = document.getElementById('keyMgrModal');
+  if(m) m.classList.remove('open');
+}
+window.openKeyMgr = openKeyMgr;
+window.closeKeyMgr = closeKeyMgr;
+function toggleKeyPick(ev){
+  if(ev) ev.stopPropagation();
+  const p = document.getElementById('keyPickPanel');
+  const btn = document.getElementById('btn-keypick');
+  if(!p || !btn) return;
+  if(p.classList.contains('open')){ closeKeyPick(); return; }
+  _apiKeysRenderSel();
+  // 먼저 보이게 한 뒤 크기를 재야 offsetWidth 가 0 이 아니다
+  p.classList.add('open');
+  const r = btn.getBoundingClientRect();
+  const w = Math.max(140, r.width);
+  p.style.minWidth = w + 'px';
+  p.style.top = 'auto';
+  p.style.bottom = Math.max(6, window.innerHeight - r.top + 6) + 'px';
+  let left = r.left;
+  const pw = p.offsetWidth || w;
+  if(left + pw > window.innerWidth - 6) left = window.innerWidth - pw - 6;
+  if(left < 6) left = 6;
+  p.style.left = left + 'px';
+  setTimeout(()=>{
+    document.addEventListener('click', closeKeyPick, { once:true });
+  }, 0);
+}
+function closeKeyPick(){
+  const p = document.getElementById('keyPickPanel');
+  if(p) p.classList.remove('open');
+}
+window.toggleKeyPick = toggleKeyPick;
+window.closeKeyPick = closeKeyPick;
 /* 설정창 목록 — 각 행: [키n] [입력칸] [✕] */
 function _apiKeysRender(){
   _apiKeysRenderSel();
@@ -19992,8 +20132,8 @@ body.tour-mob #tourNavBtns{display:none;}
     }
     return [
       {
-        key:'apikey', target:'apiKeyMob', title:'API 키 입력', elevate:'cfg-panel',
-        text:'이미지를 생성하려면 NovelAI API 키가 필요합니다.\n\n이 칸에 API 키를 입력하면 NAIM Studio가 NovelAI와 연결됩니다. 키를 입력하지 않으면 생성 버튼을 눌러도 이미지가 만들어지지 않습니다.',
+        key:'apikey', target:'apiKeyMgrBtn', title:'API 키 입력', elevate:'cfg-panel',
+        text:'이미지를 생성하려면 NovelAI API 키가 필요합니다.\n\n이 버튼을 눌러 키를 등록하면 NAIM Studio가 NovelAI와 연결됩니다. 여러 개를 등록해 두고 생성 버튼 왼쪽에서 바로 전환할 수 있습니다.',
         before:function(){ try{ (NAIM.cfg.open||NAIM.cfg.toggle)(); }catch(e){} }
       },
       {
