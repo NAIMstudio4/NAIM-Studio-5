@@ -694,6 +694,31 @@ body:not(.env-pc) .pc-only-save{display:none !important;}
   color:var(--t2);
   letter-spacing:.08em;
 }
+/* Phase 152 — 배경제거(투명, V5) 토글 박스. ⚙설정 버튼과 같은 높이/테두리로 맞춤. */
+.panel-head-row .phr-alpha{
+  height:40px;
+  padding:0 12px;
+  background:transparent;
+  border:1px solid var(--b2);
+  color:var(--t2);
+  font-size:13px;
+  font-family:var(--font);
+  cursor:pointer;
+  border-radius:3px;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  transition:all .15s;
+  box-sizing:border-box;
+  white-space:nowrap;
+  user-select:none;
+}
+.panel-head-row .phr-alpha input{ cursor:pointer; margin:0; }
+.panel-head-row .phr-alpha:has(input:checked){
+  border-color:var(--acc);
+  color:var(--acc);
+}
+
 .panel-head-row .phr-btn{
   height:40px;
   padding:0 14px;
@@ -1059,9 +1084,22 @@ body:not(.env-pc) .pc-only-save{display:none !important;}
 .pos-cell{background:var(--card);border:1px solid var(--b1);border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--t2);cursor:pointer;transition:all .12s;user-select:none;}
 .pos-cell:hover{background:var(--card2);border-color:var(--b3);color:var(--t1);}
 .pos-cell.active{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:700;}
+/* Phase 152 — V5 자유 위치 지정 캔버스 (격자 대신 임의 좌표).
+   V5 는 centers 를 0.001 단위 임의값으로 받음(실물 메타 확인). 클릭/드래그로 지정. */
+.pos-free-wrap{position:relative;width:100%;aspect-ratio:832/1216;max-height:46vh;margin:0 auto;
+  background:var(--card);border:1px solid var(--b2);border-radius:4px;cursor:crosshair;overflow:hidden;
+  background-image:linear-gradient(var(--b1) 1px,transparent 1px),linear-gradient(90deg,var(--b1) 1px,transparent 1px);
+  background-size:25% 25%;}
+.pos-free-dot{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;
+  background:var(--acc);color:#fff;font-size:11px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;pointer-events:none;
+  box-shadow:0 0 0 2px rgba(0,0,0,.55), 0 2px 8px rgba(0,0,0,.6);}
+.pos-free-dot.other{background:var(--card2);color:var(--t2);border:1px solid var(--b3);opacity:.75;}
 #posGridVal{font-size:11px;color:var(--acc);text-align:center;font-family:var(--mono);font-weight:600;}
 #posGridHint{font-size:10px;color:var(--t3);text-align:center;line-height:1.5;}
 #posGridHint.warn{color:var(--warn,#f80);}
+/* Phase 152 — V5: 캐릭터 슬롯 헤더의 📍 숨김(안 눌리게). 위치는 전역 '좌표 설정'에서 일괄 지정. */
+body.model-v5 .cs-pos-btn{display:none !important;}
 /* 슬롯 헤더 📍 버튼: 위치 설정 시 강조 */
 .cs-hbtn.pos-set{color:var(--acc);}
 
@@ -3594,7 +3632,9 @@ body.nw-swap-mode .nw-shelf-card{opacity:.4; pointer-events:none;}
           <div class="logo-text">NAIM Studio</div>
           <div class="logo-sub">v5 · build phase 2</div>
         </div>
-        <select class="inp model-sel" id="modelSel" onchange="saveSettings()">
+        <select class="inp model-sel" id="modelSel" onchange="saveSettings();syncModelUI();">
+          <option value="nai-diffusion-5-full">V5 Full</option>
+          <option value="nai-diffusion-5-curated">V5 Curated</option>
           <option value="nai-diffusion-4-5-full">V4.5 Full</option>
           <option value="nai-diffusion-4-5-curated">V4.5 Curated</option>
           <option value="nai-diffusion-4-full">V4 Full</option>
@@ -3614,6 +3654,8 @@ body.nw-swap-mode .nw-shelf-card{opacity:.4; pointer-events:none;}
           autocomplete="new-password"
           oninput="onApiKeyChange()">
         <span class="pill pill-off api-key-row" id="apiPill">미입력</span>
+        <select class="inp api-key-row" id="apiKeySel" onchange="apiKeySelect(this.value)"
+                title="API 키 전환" style="width:auto;font-size:11px;"></select>
         <div class="anlas-badge api-key-row" id="anlasBox" style="display:none;">
           <span class="anlas-lbl">ANLAS</span>
           <span class="anlas-val" id="anlasVal">—</span>
@@ -3833,6 +3875,10 @@ body.nw-swap-mode .nw-shelf-card{opacity:.4; pointer-events:none;}
     <div class="panel-head-row">
       <span class="phr-title">프롬프트 설정</span>
       <button class="help-btn" onclick="NAIM.tour.startPromptTour()" title="프롬프트 탭 사용법" style="margin-left:auto;">❓</button>
+      <label class="phr-alpha" id="alphaBox" title="V5 전용 · 켜면 프롬프트에 transparent background 추가">
+        <input type="checkbox" id="alphaCheck" onchange="saveSettings()">
+        <span>배경제거</span>
+      </label>
       <button class="phr-btn" onclick="togglePromptSettings()">⚙ 설정</button>
     </div>
 
@@ -4080,7 +4126,10 @@ body.nw-swap-mode .nw-shelf-card{opacity:.4; pointer-events:none;}
     <!-- 📍 위치설정 (Phase 13 Step D — useCoords 토글)
          _useCoords 전역 변수와 sync. v4 byte-match: callNAI 가 use_coords 로 전달. -->
     <div class="pp-row">
-      <button class="pp-btn-wide" id="useCoordsBtn" data-tour-key="char.pos" onclick="toggleUseCoords()" style="width:100%;padding:0 14px;height:32px;" title="캐릭터 위치 사용 ON/OFF">📍 위치설정 <span id="useCoordsState" style="display:inline-block;min-width:28px;text-align:left;">OFF</span></button>
+      <div style="display:flex;width:100%;gap:0;">
+        <button class="pp-btn-wide" id="useCoordsBtn" data-tour-key="char.pos" onclick="toggleUseCoords()" style="flex:2;min-width:0;padding:0 6px;height:32px;border-top-right-radius:0;border-bottom-right-radius:0;" title="캐릭터 위치 사용 ON/OFF">📍 <span id="useCoordsState" style="display:inline-block;min-width:28px;text-align:left;">OFF</span></button>
+        <button class="pp-btn-wide" id="posModeBtn" onclick="openPosMode()" style="flex:8;min-width:0;padding:0 10px;height:32px;border-top-left-radius:0;border-bottom-left-radius:0;border-left:none;" title="좌표 설정 모드">좌표 설정</button>
+      </div>
     </div>
 
     <!-- 슬롯 C1~C6 (JS 동적 생성) -->
@@ -4163,6 +4212,9 @@ body.nw-swap-mode .nw-shelf-card{opacity:.4; pointer-events:none;}
     <!-- Phase 37 — API 키 입력 (cfg-panel 최상단) -->
     <div class="cfg-section">
       <div style="font-size:10px;color:var(--acc);letter-spacing:.08em;padding:6px 0 4px;border-bottom:1px solid var(--b1);margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;">🔑 API 키<button class="help-btn-hideonly" onclick="NAIM.tour.startSettingsTour()" title="설정 둘러보기" style="background:none;border:none;color:var(--acc);cursor:pointer;font-size:12px;padding:0 2px;line-height:1;">❓</button></div>
+      <div id="apiKeyList"></div>
+      <button class="btn btn-ghost btn-sm" id="apiKeyAddBtn" onclick="apiKeyAdd()" style="width:100%;height:28px;margin-top:6px;font-size:11px;">＋ 키 추가</button>
+      <div class="cfg-hint">여러 키를 저장해두고 상단에서 전환할 수 있습니다.</div>
       <input
         data-tour-key="apikey" id="apiKeyMob"
         class="inp"
@@ -4170,8 +4222,7 @@ body.nw-swap-mode .nw-shelf-card{opacity:.4; pointer-events:none;}
         placeholder="NovelAI Bearer Token"
         autocomplete="new-password"
         oninput="onApiKeyMobChange(this.value)"
-        style="width:100%;font-size:11px;">
-      <div class="cfg-hint">상단 입력칸과 자동 동기화됩니다.</div>
+        style="display:none;">
     </div>
 
     <!-- UI 스케일 (PC 전용) -->
@@ -4765,7 +4816,9 @@ body.nw-swap-mode .nw-shelf-card{opacity:.4; pointer-events:none;}
       <button class="btn btn-ghost btn-sm" onclick="closePosGrid()" style="height:26px;padding:0 9px;">✕</button>
     </div>
     <div id="posGridBody">
+      <div id="posCharTabs" style="display:none;gap:4px;flex-wrap:wrap;justify-content:center;"></div>
       <div class="pos-grid-cells" id="posGridCells"></div>
+      <div class="pos-free-wrap" id="posFreeWrap" style="display:none;"></div>
       <div id="posGridVal">x:0.5 y:0.5</div>
       <div id="posGridHint">중앙(●) = 자동 배치 · 같은 셀 재클릭 시 닫힘</div>
     </div>
@@ -5527,7 +5580,7 @@ function _snapGenState(){
     apiKey:(function(){ var k=gvm('apiKey'); return (typeof k==='string')?k.trim():k; })(), modelSel:gvm('modelSel'), resSel:gvm('resSel'), customW:gvm('customW'), customH:gvm('customH'),
     sampler:gvm('sampler'), noiseSchedule:gvm('noiseSchedule'), steps:gvm('steps'),
     cfgScale:gvm('cfgScale'), cfgRescale:gvm('cfgRescale'), seed:gvm('seed'),
-    smeaCheck:gvm('smeaCheck'), smeaDynCheck:gvm('smeaDynCheck'), varietyCheck:gvm('varietyCheck'),
+    smeaCheck:gvm('smeaCheck'), smeaDynCheck:gvm('smeaDynCheck'), varietyCheck:gvm('varietyCheck'), alphaCheck:gvm('alphaCheck'),
     wildcardApplyEnabled: (typeof _wildcardApplyEnabled !== 'undefined') ? !!_wildcardApplyEnabled : false,
     uncondNum:gvm('uncondNum'), qualityToggle:gvm('qualityToggle'), ucPreset:gvm('ucPreset'),
     basePrompt:gvm('basePrompt'), negPrompt:gvm('negPrompt'), addPrompt:gvm('addPrompt'),
@@ -5560,6 +5613,24 @@ function _snapGenState(){
 // v4 byte-match (line 4005~4275) — NAI API 호출 함수
 // 🔒 본문 절대 수정 금지 — 사용자가 v4 에서 겨우 맞춘 NAI 통신 약속.
 // 호출하는 쪽 (Step C·D 의 큐 처리 루프) 은 v5 자체 설계.
+/* Phase 152 — V5 프리셋 데이터 (실물 메타에서 역추출, 2026-08-22).
+   NAI 웹은 서버 파라미터가 아니라 클라이언트가 문자열을 직접 붙이는 방식.
+   - Quality Tags: 프롬프트 "끝"에 추가.  tag_hint_qt 로 단계 기록.
+   - UC Preset:    네거티브 "앞"에 추가.  tag_hint_uc_preset 으로 단계 기록.
+   ※ 현재는 데이터만 보유하고 적용하지 않음(none 동작 유지). UI 연결 시 사용. */
+const NAI_V5_QT_TAGS = {
+  0: '',
+  1: ', very aesthetic, masterpiece, no text',
+  3: ', very aesthetic, amazing quality, no text'
+};
+const NAI_V5_UC_PRESETS = {
+  0: '',
+  2: 'nsfw, lowres, ',
+  3: 'nsfw, lowres, bad hands, bad anatomy, artistic error, sepia, white haze, worst quality, very displeasing, jpeg artifacts, 0::ai-generated::, ',
+  4: 'nsfw, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, @_@, mismatched pupils, glowing eyes, bad anatomy, ',
+  5: 'nsfw, {worst quality}, distracting watermark, unfinished, bad quality, {widescreen}, upscale, {sequence}, {{grandfathered content}}, blurred foreground, chromatic aberration, sketch, everyone, [sketch background], simple, [flat colors], ych (character), outline, multiple scenes, [[horror (theme)]], comic, '
+};
+
 async function callNAI(userPrompt, apiKey, snap){
   // snap에서 직접 읽기 — DOM 불간섭
   const s = snap || {};
@@ -5567,6 +5638,7 @@ async function callNAI(userPrompt, apiKey, snap){
   const sv = k => (s[k] !== undefined && s[k] !== null) ? s[k] : gv(k);
 
   // Quality Tags 적용
+
   const _qt = sv('qualityToggle') === true || sv('qualityToggle') === 'true';
   if(_qt && userPrompt) userPrompt = userPrompt + ', very aesthetic, masterpiece, no text';
 
@@ -5617,7 +5689,17 @@ async function callNAI(userPrompt, apiKey, snap){
   });
   const activeChars = snapCharsWithOutfit.filter(c=>c.enabled&&c.prompt.trim());
 
-  const isV4 = (model||'').startsWith('nai-diffusion-4');
+  // Phase 152 — V5 대응: V5 도 v4_prompt/v4_negative_prompt 구조를 그대로 사용(실물 메타 확인).
+  //   centers {x,y}, use_coords/use_order 동일. 따라서 V4 분기를 공유한다.
+  const isV4 = (model||'').startsWith('nai-diffusion-4') || (model||'').startsWith('nai-diffusion-5');
+  const isV5 = (model||'').startsWith('nai-diffusion-5');
+  /* 배경 제거(투명): NAI 웹 체크박스와 동일하게 straight_alpha + tag_hint_transparent_background 전송 +
+     프롬프트 끝에 'transparent background' 태그 자동 추가. V5 에서만 유효. */
+  const wantAlpha = isV5 && (s.alphaCheck === true || s.alphaCheck === 'true');
+  if(wantAlpha && !/transparent background/i.test(userPrompt||'')){
+    userPrompt = (userPrompt||'').trim();
+    userPrompt = userPrompt ? (userPrompt.replace(/,\s*$/,'') + ', transparent background') : 'transparent background';
+  }
   let body;
 
   if(isV4){
@@ -5654,6 +5736,7 @@ async function callNAI(userPrompt, apiKey, snap){
         deliberate_euler_ancestral_bug: false,
         prefer_brownian: true,
         variety_plus: (s.varietyCheck === true || s.varietyCheck === 'true'),
+        ...(wantAlpha ? { straight_alpha: true, tag_hint_transparent_background: true } : {}),
         negative_prompt: neg,
         v4_prompt:{
           caption:{
@@ -6415,6 +6498,21 @@ function openCharPresetModal(tab, slot){
   if(typeof renderCpList === 'function') renderCpList();
 }
 
+/* Phase 152 — 프리셋 모달 닫을 때 목록 DOM 비우기 (메모리 회수).
+   배경: 모달은 display:none 이 아니라 opacity:0 으로 숨겨질 뿐이라, 한 번 연 카테고리의
+     카드/썸네일(base64 background-image)이 계속 디코딩된 채 상주했음. 카테고리 5종
+     (캐릭터/의상/기타/그림체/후행)을 한 번씩 열면 그 전부가 동시에 메모리에 남음.
+   안전한 이유: 세 모달 모두 열 때 render*List() 로 목록을 다시 그림 → 비워도 복구됨.
+     카드 DOM 을 읽는 외부 코드는 전부 e.target.closest() 방식(클릭 시점)이라 닫힌 동안 접근 없음.
+   페이드(opacity .2s) 중에 내용이 사라져 보이지 않도록 전환 후 비움. 그새 다시 열렸으면 스킵. */
+function _purgePresetList(modalId, ...listIds){
+  setTimeout(()=>{
+    const m = document.getElementById(modalId);
+    if(m && m.classList.contains('open')) return;   // 재오픈됨 — 유지
+    listIds.forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = ''; });
+  }, 250);
+}
+
 function closeCharPresetModal(){
   const m = document.getElementById('charPresetModal');
   if(m) m.classList.remove('open');
@@ -6425,6 +6523,7 @@ function closeCharPresetModal(){
   if(window.__naimClearSwap) window.__naimClearSwap();
   document.querySelectorAll('.sort-mode').forEach(h => h.classList.remove('sort-mode'));
   document.querySelectorAll('.swap-pick').forEach(c => c.classList.remove('swap-pick'));
+  _purgePresetList('charPresetModal', 'qcharPresetList', 'qoutfitPresetList', 'qetcPresetList');
 }
 
 // Phase 134 — 탭 정규화 (3-탭: qchar/qoutfit/qetc)
@@ -7166,8 +7265,21 @@ function openPosGrid(i){
       hint.classList.remove('warn');
     }
   }
-  // 그리드 렌더 + 모달 열기
-  _renderPosGrid();
+  // Phase 152 — V5 는 자유 배치 캔버스, 그 외는 기존 5×5 격자
+  const useFree = _isV5Model();
+  const cellsEl = document.getElementById('posGridCells');
+  const freeEl  = document.getElementById('posFreeWrap');
+  if(cellsEl) cellsEl.style.display = useFree ? 'none' : '';
+  if(freeEl)  freeEl.style.display  = useFree ? '' : 'none';
+  if(useFree){
+    if(hint && !hint.classList.contains('warn')) hint.textContent = '이미지 안을 탭/드래그해 위치를 지정하세요';
+    _posFreeBind();
+    _posFreeBg();
+    _renderPosFree();
+  } else {
+    _renderPosGrid();
+  }
+  _renderPosCharTabs();
   const m = document.getElementById('posGridModal');
   if(m) m.classList.add('open');
 }
@@ -7176,6 +7288,138 @@ function closePosGrid(){
   const m = document.getElementById('posGridModal');
   if(m) m.classList.remove('open');
   _posCharIdx = -1;
+}
+
+/* Phase 152 — 좌표 설정 모드 (전역 진입).
+   슬롯별 📍 대신 여기서 캐릭터를 골라가며 캔버스에 직접 찍는다.
+   활성 슬롯이 없으면 안내만. V5 가 아니면 기존 격자 방식으로 첫 슬롯을 연다. */
+function openPosMode(){
+  if(typeof chars === 'undefined' || !Array.isArray(chars)) return;
+  const usable = chars.map((c,i)=>({c,i})).filter(o => o.c && o.c.enabled);
+  const first = usable.length ? usable[0].i : 0;
+  openPosGrid(first);
+}
+/* 캐릭터 전환 탭 — 좌표 모드에서 대상 슬롯 변경 */
+function _renderPosCharTabs(){
+  const host = document.getElementById('posCharTabs');
+  if(!host) return;
+  const usable = chars.map((c,i)=>({c,i})).filter(o => o.c && o.c.enabled);
+  if(usable.length < 2){ host.style.display = 'none'; host.innerHTML = ''; return; }
+  host.style.display = 'flex';
+  host.innerHTML = usable.map(o =>
+    `<button class="btn btn-ghost btn-sm" onclick="posModeSwitch(${o.i})" style="height:26px;padding:0 10px;${o.i === _posCharIdx ? 'border-color:var(--acc);color:var(--acc);' : ''}">C${o.i + 1}</button>`
+  ).join('');
+}
+function posModeSwitch(i){
+  if(!chars[i]) return;
+  _posCharIdx = i;
+  const title = document.getElementById('posGridTitle');
+  if(title) title.textContent = `📍 C${i + 1} 위치 설정`;
+  _renderPosCharTabs();
+  if(_isV5Model()) _renderPosFree(); else _renderPosGrid();
+}
+window.openPosMode = openPosMode;
+window.posModeSwitch = posModeSwitch;
+
+/* Phase 152 — 모델에 따른 UI 전환(V5: 슬롯 📍 숨김). modelSel 변경/부팅 시 호출. */
+function syncModelUI(){
+  document.body.classList.toggle('model-v5', _isV5Model());
+}
+window.syncModelUI = syncModelUI;
+
+/* Phase 152 — 현재 모델이 V5 인지 (자유 위치 지정 여부 판단) */
+function _isV5Model(){
+  return (document.getElementById('modelSel')?.value || '').startsWith('nai-diffusion-5');
+}
+/* Phase 152 — 좌표 캔버스 배경: PC 는 갤러리 선택 이미지(여러 장이면 그중 최신),
+   선택이 없거나 모바일이면 갤러리 최신 이미지. 없으면 격자 배경만. */
+function _posFreeBg(){
+  const wrap = document.getElementById('posFreeWrap');
+  if(!wrap) return;
+  let url = '';
+  try{
+    const g = (typeof NAIM !== 'undefined') && NAIM.gallery;
+    if(g){
+      const isMob = !document.body.classList.contains('env-pc');
+      let pick = null;
+      if(!isMob && typeof g.getSelected === 'function'){
+        const sel = g.getSelected();
+        if(sel && sel.length) pick = sel[sel.length - 1];   // 여러 장 → 가장 최근 것
+      }
+      if(!pick && typeof g.getLatest === 'function') pick = g.getLatest();
+      url = (pick && pick.url) || '';
+    }
+  }catch{}
+  if(url){
+    wrap.style.backgroundImage = `url("${url}")`;
+    wrap.style.backgroundSize = 'contain';
+    wrap.style.backgroundPosition = 'center';
+    wrap.style.backgroundRepeat = 'no-repeat';
+  } else {
+    wrap.style.backgroundImage = '';   // CSS 격자 배경으로 복귀
+    wrap.style.backgroundSize = '';
+    wrap.style.backgroundPosition = '';
+    wrap.style.backgroundRepeat = '';
+  }
+}
+
+/* V5 자유 캔버스 렌더 — 다른 슬롯 위치도 흐리게 함께 표시 */
+function _renderPosFree(){
+  const wrap = document.getElementById('posFreeWrap');
+  if(!wrap || _posCharIdx < 0) return;
+  const cur = (chars[_posCharIdx] && chars[_posCharIdx].pos) || {x:0.5, y:0.5};
+  wrap.innerHTML = '';
+  chars.forEach((c, i)=>{
+    if(!c || !c.enabled) return;
+    const p = c.pos || {x:0.5, y:0.5};
+    const d = document.createElement('div');
+    d.className = 'pos-free-dot' + (i === _posCharIdx ? '' : ' other');
+    d.style.left = (p.x * 100) + '%';
+    d.style.top  = (p.y * 100) + '%';
+    d.textContent = String(i + 1);
+    wrap.appendChild(d);
+  });
+  const val = document.getElementById('posGridVal');
+  if(val) val.textContent = `x:${cur.x.toFixed(3)} y:${cur.y.toFixed(3)}`;
+}
+/* 캔버스 좌표 → 0~1 정규화 후 저장 */
+function _posFreeSet(ev){
+  if(_posCharIdx < 0) return;
+  const wrap = document.getElementById('posFreeWrap');
+  if(!wrap) return;
+  const r = wrap.getBoundingClientRect();
+  const cx = (ev.touches ? ev.touches[0].clientX : ev.clientX);
+  const cy = (ev.touches ? ev.touches[0].clientY : ev.clientY);
+  let x = (cx - r.left) / r.width;
+  let y = (cy - r.top)  / r.height;
+  x = Math.min(1, Math.max(0, x));
+  y = Math.min(1, Math.max(0, y));
+  const c = chars[_posCharIdx];
+  if(!c) return;
+  c.pos = { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 };
+  _renderPosFree();
+  // 슬롯 헤더 📍 버튼 강조 (중앙이 아닐 때만) — selectPos 와 동일 처리
+  const slotEl = document.querySelector(`.cs-slot[data-slot-idx="${_posCharIdx}"]`);
+  if(slotEl){
+    const posBtn = slotEl.querySelector('.cs-hbtn[title="위치 설정"]');
+    if(posBtn) posBtn.classList.toggle('pos-set', !(c.pos.x === 0.5 && c.pos.y === 0.5));
+  }
+  if(typeof saveSettings === 'function') saveSettings();
+}
+function _posFreeBind(){
+  const wrap = document.getElementById('posFreeWrap');
+  if(!wrap || wrap._posBound) return;
+  wrap._posBound = true;
+  let dragging = false;
+  const down = (e)=>{ dragging = true; _posFreeSet(e); e.preventDefault(); };
+  const move = (e)=>{ if(dragging) { _posFreeSet(e); e.preventDefault(); } };
+  const up   = ()=>{ dragging = false; };
+  wrap.addEventListener('mousedown', down);
+  wrap.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', up);
+  wrap.addEventListener('touchstart', down, {passive:false});
+  wrap.addEventListener('touchmove', move, {passive:false});
+  window.addEventListener('touchend', up);
 }
 
 function _renderPosGrid(){
@@ -7305,6 +7549,7 @@ function closeStyleModal(){
   if(window.__naimClearSwap) window.__naimClearSwap();
   document.querySelectorAll('.sort-mode').forEach(h => h.classList.remove('sort-mode'));
   document.querySelectorAll('.swap-pick').forEach(c => c.classList.remove('swap-pick'));
+  _purgePresetList('styleModal', 'styleList');
 }
 
 // ── 추가 패널 ──
@@ -7891,6 +8136,7 @@ function closeSqModal(){
   if(window.__naimClearSwap) window.__naimClearSwap();
   document.querySelectorAll('.sort-mode').forEach(h => h.classList.remove('sort-mode'));
   document.querySelectorAll('.swap-pick').forEach(c => c.classList.remove('swap-pick'));
+  _purgePresetList('sqModal', 'sqList');
 }
 
 function setSqCardSize(px){
@@ -8549,7 +8795,7 @@ function clearTa(id){
 // 저장 시: data[v4key] = el.value  (v4 스키마 유지, 규칙 1)
 // 로드 시: getElementById(v5id).value = data[v4key]
 const SAVE_KEY = 'nai_studio_v3'; // (호환용 상수, v4 동일)
-const FIELD_IDS_V4 = ['apiKey','modelSel','resSel','customW','customH','sampler','noiseSchedule','steps','cfgScale','cfgRescale','seed','delayNum','contCount','savePath','savePrefix','saveSuffix','basePrompt','negPrompt','contCheck','ucPreset','addPrompt','smeaCheck','smeaDynCheck','varietyCheck','uncondNum','taDblTapToggle','helpBtnToggle','charHidePreviewToggle','hidePresetThumbToggle','hideSesThumbToggle','tacEnabledMob','autoSaveToggle'];
+const FIELD_IDS_V4 = ['apiKey','modelSel','resSel','customW','customH','sampler','noiseSchedule','steps','cfgScale','cfgRescale','seed','delayNum','contCount','savePath','savePrefix','saveSuffix','basePrompt','negPrompt','contCheck','ucPreset','addPrompt','smeaCheck','smeaDynCheck','varietyCheck','uncondNum','taDblTapToggle','helpBtnToggle','charHidePreviewToggle','hidePresetThumbToggle','hideSesThumbToggle','tacEnabledMob','autoSaveToggle','alphaCheck'];
 
 // v4 키 → v5 id. v4 id 와 다른 경우만 등록.
 // Phase 10 Step A1 확장: contCount → autoNCount (예약 패널, Phase 8 Step F 에서 신설된 v5 id)
@@ -8796,6 +9042,10 @@ function _loadSettingsInner(){
   }
   // Phase 12: 저장된 API 키가 있으면 pill/anlas 상태 복원 (toast 차단된 첫 호출)
   if(typeof onApiKeyChange === 'function') onApiKeyChange();
+  // Phase 152: 다중 API 키 초기화 — 설정 복원 후여야 기존 단일 키가 키1로 편입됨
+  if(typeof initApiKeys === 'function') initApiKeys();
+  // Phase 152: 모델별 UI 전환(V5 슬롯 📍 숨김) 복원
+  if(typeof syncModelUI === 'function') syncModelUI();
   // Phase 13 Step D: useCoords 버튼 라벨 sync (저장된 _useCoords 반영)
   if(typeof _syncUseCoordsBtn === 'function') _syncUseCoordsBtn();
   // Phase 16 Step C: _activeQChars / _activeQOutfits 복원 후 모든 슬롯 cs-thumb 동기화
@@ -11205,6 +11455,31 @@ function toggleVariety(){
       if(el2 && parsed.sm_dyn !== undefined) el2.checked = !!parsed.sm_dyn;
     }});
 
+    // Phase 152 — 모델 복원. Comment 에 API model 문자열이 없어 model_name 표시값으로 역매핑.
+    //   (예: "NovelAI Diffusion V5" → nai-diffusion-5-full). Curated 여부는 메타에 없어 Full 로 둔다.
+    if(parsed.model_name){
+      const mn = String(parsed.model_name);
+      const mmap = [
+        [/V5/i,            'nai-diffusion-5-full'],
+        [/V4\.5/i,         'nai-diffusion-4-5-full'],
+        [/V4/i,            'nai-diffusion-4-full'],
+        [/V3|Anime/i,      'nai-diffusion-3'],
+        [/Furry/i,         'safe-diffusion']
+      ];
+      const hit = mmap.find(([re]) => re.test(mn));
+      if(hit) settings.push({k:'MODEL', v:mn, fn:()=>{
+        setSel('modelSel', hit[1]);
+        if(typeof syncModelUI === 'function') syncModelUI();
+      }});
+    }
+    // Phase 152 — 배경 제거(투명). 프롬프트 태그가 실제 동작이고 이건 UI 상태 복원용.
+    if(parsed.tag_hint_transparent_background !== undefined && parsed.tag_hint_transparent_background !== null){
+      settings.push({k:'배경 제거', v: parsed.tag_hint_transparent_background ? 'ON' : 'OFF', fn:()=>{
+        const el = document.getElementById('alphaCheck');
+        if(el) el.checked = !!parsed.tag_hint_transparent_background;
+      }});
+    }
+
     _exifData.settings = settings;
     const settingsWrap = document.getElementById('exg_settings_wrap');
     if(settings.length){
@@ -11680,6 +11955,8 @@ function toggleVariety(){
     saveSelectedZip,      // 도구줄 📦 (선택 ZIP 다운로드)
     // 외부 (window.toggleSelectItem / updateSelUI) 가 사용. 단일 원천 (Step D·E 검수에서 헬퍼화).
     getSelected: _getSelectedItems,    // 선택된 item 배열 반환
+    // Phase 152 — 좌표 설정 캔버스 배경용. items 는 생성 순 push 이므로 마지막이 최신.
+    getLatest: ()=> (items.length ? items[items.length - 1] : null),
     updateCount: _updateCount,         // 카운트 표시 갱신 (selected 정보 포함)
     findItemByEl: _findItemByEl,       // .g-item DOM → item 객체 매칭 (양쪽 grid)
     setItemSelected: _setItemSelected, // 양쪽 grid 동기화로 selected 클래스 set/unset
@@ -13201,7 +13478,7 @@ window.togglePPCollapsible = function(headEl){
           <button class="cs-hbtn cs-move-btn" onclick="event.stopPropagation();NAIM.charSlot.move(this,-1)" title="위로">▲</button>
           <button class="cs-hbtn cs-move-btn" onclick="event.stopPropagation();NAIM.charSlot.move(this,1)" title="아래로">▼</button>
           <span class="cs-head-spacer"></span>
-          <button class="cs-hbtn" onclick="event.stopPropagation();openPosGrid(${i})" title="위치 설정">📍</button>
+          <button class="cs-hbtn cs-pos-btn" onclick="event.stopPropagation();openPosGrid(${i})" title="위치 설정">📍</button>
           <button class="cs-hbtn danger" onclick="event.stopPropagation();NAIM.charSlot.clear(this)" title="슬롯 초기화">🗑</button>
         </div>
         <div class="cs-media">
@@ -14391,10 +14668,141 @@ function onApiKeyChange(){
   }
   // 잠복 폭탄 #1 해결: settings 저장 트리거
   if(typeof saveSettings === 'function') saveSettings();
+  // Phase 152: 상단 입력칸에서 직접 고친 값을 현재 선택된 키 슬롯에도 반영
+  try{
+    if(_apiKeyInited && Array.isArray(_apiKeys) && _apiKeys[_apiKeyIdx] && _apiKeys[_apiKeyIdx].key !== v){
+      _apiKeys[_apiKeyIdx].key = v;
+      _apiKeysSave();
+      _apiKeysRender();
+    }
+  }catch{}
   _apiKeyInited = true;
 }
 
 // Phase 37 — cfg-panel 입력칸 → 헤더 입력칸 sync 후 onApiKeyChange 발화
+/* ═══════════════════════════════════════════════════════════════
+   Phase 152 — API 키 다중 저장 + 전환
+   ─ 저장: localStorage 'naim_api_keys' = [{name, key}], 'naim_api_key_idx' = 선택 인덱스
+   ─ 선택된 키를 기존 #apiKey 에 주입 → 생성/ANLAS 등 기존 코드는 그대로 동작(무수정)
+   ─ 관리(추가/수정/삭제)는 설정창, 전환은 상단 셀렉트(키 2개 이상일 때만 노출)
+   ═══════════════════════════════════════════════════════════════ */
+const API_KEYS_LS = 'naim_api_keys';
+const API_KEY_IDX_LS = 'naim_api_key_idx';
+let _apiKeys = [];
+let _apiKeyIdx = 0;
+
+function _apiKeysLoad(){
+  try{
+    const raw = localStorage.getItem(API_KEYS_LS);
+    _apiKeys = raw ? JSON.parse(raw) : [];
+    if(!Array.isArray(_apiKeys)) _apiKeys = [];
+  }catch{ _apiKeys = []; }
+  _apiKeyIdx = parseInt(localStorage.getItem(API_KEY_IDX_LS) || '0', 10) || 0;
+  // 기존 단일 키 마이그레이션: 저장된 목록이 없고 설정에 키가 있으면 1번 키로 편입
+  if(_apiKeys.length === 0){
+    const cur = (document.getElementById('apiKey')?.value || '').trim();
+    if(cur) _apiKeys = [{ name:'키1', key:cur }];
+  }
+  if(_apiKeyIdx >= _apiKeys.length) _apiKeyIdx = 0;
+}
+function _apiKeysSave(){
+  try{
+    localStorage.setItem(API_KEYS_LS, JSON.stringify(_apiKeys));
+    localStorage.setItem(API_KEY_IDX_LS, String(_apiKeyIdx));
+  }catch{}
+}
+/* 선택된 키를 기존 입력칸에 주입 → onApiKeyChange 가 pill/ANLAS 갱신 */
+function _apiKeyApply(){
+  const el = document.getElementById('apiKey');
+  if(!el) return;
+  const k = _apiKeys[_apiKeyIdx]?.key || '';
+  if(el.value !== k){ el.value = k; onApiKeyChange(); }
+}
+function apiKeySelect(idx){
+  _apiKeyIdx = parseInt(idx, 10) || 0;
+  _apiKeysSave();
+  _apiKeyApply();
+  _apiKeysRender();
+  const nm = _apiKeys[_apiKeyIdx]?.name || '';
+  if(typeof NAIM !== 'undefined' && NAIM.toast && nm) NAIM.toast(nm + ' 사용 중', 'ok');
+}
+function apiKeyAdd(){
+  if(_apiKeys.length >= 8){
+    if(typeof NAIM !== 'undefined' && NAIM.toast) NAIM.toast('키는 최대 8개까지', 'err');
+    return;
+  }
+  _apiKeys.push({ name:'키' + (_apiKeys.length + 1), key:'' });
+  _apiKeysSave();
+  _apiKeysRender();
+}
+function apiKeyEdit(i, val){
+  if(!_apiKeys[i]) return;
+  _apiKeys[i].key = val.trim();
+  _apiKeysSave();
+  if(i === _apiKeyIdx) _apiKeyApply();
+  _apiKeysRenderSel();
+}
+function apiKeyDel(i){
+  if(!_apiKeys[i]) return;
+  _apiKeys.splice(i, 1);
+  // 이름 재부여(키1,키2...) — 번호 연속 유지
+  _apiKeys.forEach((k, n) => { k.name = '키' + (n + 1); });
+  if(_apiKeyIdx >= _apiKeys.length) _apiKeyIdx = Math.max(0, _apiKeys.length - 1);
+  _apiKeysSave();
+  _apiKeyApply();
+  _apiKeysRender();
+}
+/* 상단 전환 셀렉트 — 키 2개 이상일 때만 노출 */
+function _apiKeysRenderSel(){
+  const sel = document.getElementById('apiKeySel');
+  if(!sel) return;
+  sel.style.display = '';
+  sel.innerHTML = _apiKeys.map((k, i) =>
+    `<option value="${i}"${i === _apiKeyIdx ? ' selected' : ''}>${k.name}${k.key ? '' : ' (빈칸)'}</option>`
+  ).join('');
+}
+/* 설정창 목록 — 각 행: [키n] [입력칸] [✕] */
+function _apiKeysRender(){
+  _apiKeysRenderSel();
+  const host = document.getElementById('apiKeyList');
+  if(!host) return;
+  host.innerHTML = '';
+  _apiKeys.forEach((k, i) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:4px;margin-bottom:4px;';
+    const lbl = document.createElement('span');
+    lbl.textContent = k.name;
+    lbl.style.cssText = 'font-size:10px;min-width:26px;color:' + (i === _apiKeyIdx ? 'var(--acc)' : 'var(--t3)') + ';cursor:pointer;';
+    lbl.title = '이 키 사용';
+    lbl.onclick = ()=> apiKeySelect(i);
+    const inp = document.createElement('input');
+    inp.className = 'inp'; inp.type = 'password';
+    inp.placeholder = 'NovelAI Bearer Token';
+    inp.autocomplete = 'new-password';
+    inp.value = k.key || '';
+    inp.style.cssText = 'flex:1;min-width:0;font-size:11px;';
+    inp.oninput = ()=> apiKeyEdit(i, inp.value);
+    const del = document.createElement('button');
+    del.className = 'btn btn-ghost btn-sm'; del.textContent = '✕'; del.title = '이 키 삭제';
+    del.style.cssText = 'flex-shrink:0;height:26px;padding:0 8px;';
+    del.onclick = ()=> apiKeyDel(i);
+    row.append(lbl, inp, del);
+    host.appendChild(row);
+  });
+}
+/* 부팅 시 초기화 — 설정 복원(#apiKey 값 세팅) 이후에 호출되어야 함 */
+function initApiKeys(){
+  _apiKeysLoad();
+  if(_apiKeys.length === 0) _apiKeys = [{ name:'키1', key:'' }];
+  _apiKeysSave();
+  _apiKeyApply();
+  _apiKeysRender();
+}
+window.apiKeySelect = apiKeySelect;
+window.apiKeyAdd = apiKeyAdd;
+window.apiKeyDel = apiKeyDel;
+window.initApiKeys = initApiKeys;
+
 function onApiKeyMobChange(val){
   if(_apiKeySyncing) return;
   const mainEl = document.getElementById('apiKey');
