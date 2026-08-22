@@ -1075,6 +1075,56 @@ body:not(.env-pc) .pc-only-save{display:none !important;}
 /* ═══════════════════════════════════════════════════════════════
    Phase 24 — 슬롯 위치 그리드 모달 (5×5 격자, x/y ∈ {0.1, 0.3, 0.5, 0.7, 0.9})
    ═══════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════
+   Phase 153 — 작가 태그 편집기 (Artist Mixer)
+   프롬프트에서 작가 태그만 자동 인식해 행으로 펼치고, 가중치/적용문구/순서/포함여부 편집.
+   판정: `artist:` 접두어가 있거나, 등록된 적용문구로 시작하는 항목만 작가로 인정.
+   나머지 태그는 건드리지 않고 원본 자리에 그대로 둔다.
+   ═══════════════════════════════════════════════════════════════ */
+/* Phase 153 — 그림체 모달을 작가 추출용으로 재활용할 때: 편집 계열 UI 숨김.
+   카드 탭 = 작가 추출로만 동작하게 하여 실수로 수정/추가되는 것을 막는다. */
+body.am-pick-mode #styleEditBtn,
+body.am-pick-mode #styleAddToggleBtn{display:none !important;}
+
+#artistMixModal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:9700;opacity:0;pointer-events:none;transition:opacity .2s;}
+#artistMixModal.open{opacity:1;pointer-events:all;}
+#artistMixBox{background:var(--panel);border:1px solid var(--b2);border-radius:6px;width:min(680px,94vw);max-height:88vh;display:flex;flex-direction:column;overflow:hidden;}
+#artistMixHdr{padding:10px 14px;background:var(--card2);border-bottom:1px solid var(--b1);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+#artistMixBody{padding:12px 14px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;}
+#artistMixFoot{padding:10px 14px;background:var(--card2);border-top:1px solid var(--b1);display:flex;gap:6px;flex-shrink:0;}
+.am-sec-lbl{font-size:10px;color:var(--acc);letter-spacing:.08em;display:flex;align-items:center;justify-content:space-between;}
+.am-list{display:flex;flex-direction:column;gap:5px;}
+.am-row{display:grid;grid-template-columns:26px 84px 1fr 128px 34px 26px;gap:5px;align-items:center;
+  background:var(--card);border:1px solid var(--b1);border-radius:4px;padding:5px;}
+.am-row.off{opacity:.42;}
+.am-row.dragging{opacity:.3;}
+.am-row.drop-before{box-shadow:0 -2px 0 var(--acc);}
+.am-row.drop-after{box-shadow:0 2px 0 var(--acc);}
+.am-handle{background:none;border:none;color:var(--t3);font-size:15px;cursor:grab;padding:0;height:28px;touch-action:none;user-select:none;}
+.am-handle:active{cursor:grabbing;}
+.am-w{display:grid;grid-template-columns:20px 1fr 20px;height:28px;border:1px solid var(--b2);border-radius:3px;overflow:hidden;background:var(--bg,#10141f);}
+.am-w input{height:26px;border:none;background:transparent;color:var(--t1);text-align:center;font-size:11px;font-family:var(--mono);width:100%;padding:0;}
+.am-w button{border:none;background:var(--card2);color:var(--t2);font-size:13px;font-weight:700;cursor:pointer;padding:0;height:26px;}
+.am-w button:hover{background:var(--acc);color:#fff;}
+.am-name{display:grid;grid-template-columns:auto 1fr;min-width:0;}
+.am-prefix{height:28px;padding:0 6px;font-size:9px;font-weight:700;color:var(--acc);background:var(--card2);
+  border:1px solid var(--b2);border-right:none;border-radius:3px 0 0 3px;cursor:pointer;}
+.am-prefix.off{color:var(--t3);}
+.am-name input{height:28px;font-size:11px;padding:0 6px;border-radius:0 3px 3px 0;min-width:0;}
+.am-row select{height:28px;font-size:11px;padding:0 4px;min-width:0;}
+.am-del{background:none;border:none;color:var(--t3);font-size:14px;cursor:pointer;padding:0;height:28px;}
+.am-del:hover{color:var(--err,#ff5a5a);}
+.am-empty{padding:24px;text-align:center;color:var(--t3);font-size:11px;line-height:1.6;}
+.am-out{width:100%;height:64px;font-size:11px;font-family:var(--mono);line-height:1.5;resize:vertical;}
+.am-phrases{display:flex;flex-wrap:wrap;gap:4px;}
+.am-chip{display:inline-flex;align-items:center;gap:4px;background:var(--card);border:1px solid var(--b2);
+  border-radius:3px;padding:3px 6px;font-size:10px;color:var(--t2);}
+.am-chip button{background:none;border:none;color:var(--t3);cursor:pointer;font-size:11px;padding:0;line-height:1;}
+.am-chip button:hover{color:var(--err,#ff5a5a);}
+@media(max-width:560px){
+  .am-row{grid-template-columns:24px 74px 1fr 34px 24px;}
+  .am-row select{grid-column:1 / -1;}
+}
 #posGridModal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:9700;opacity:0;pointer-events:none;transition:opacity .2s;}
 #posGridModal.open{opacity:1;pointer-events:all;}
 #posGridBox{background:var(--panel);border:1px solid var(--b2);border-radius:6px;width:min(360px,92vw);display:flex;flex-direction:column;overflow:hidden;}
@@ -2949,14 +2999,43 @@ body.hide-help .help-btn-hideonly{display:none !important;}
   #slotStatusBox,
   /* Phase 111 — 누락된 두 개 추가. 데이터 관리 / 파일 관리 모달도 UI 스케일 영향 받게 */
   #fileMgrBox,
-  #dataManageBox{
+  #dataManageBox,
+  /* Phase 153 — 누락 보강. 이들도 #app-root 밖이라 스케일이 안 걸리고 있었음.
+     ※ styleHelpPanel/styleAddPanel/sqHelpPanel/sqAddPanel/cpHelpPanel/cpAddThumbBox/
+       taFontPanel/taInsertPanel 은 이미 스케일된 부모 박스 "안"이라 넣으면 이중 적용됨 — 제외. */
+  #sqModalBox,
+  #artistMixBox,
+  #blurSettingsPanel{
     transform: scale(var(--ui-scale));
     transform-origin: center center;
+  }
+  /* Phase 153 — 잘림 방지: 확대해도 실제 표시 크기가 뷰포트를 넘지 않게 논리 크기를 제한.
+     scale 배율만큼 미리 나눠주므로 표시 크기는 항상 뷰포트의 92%/88% 이하로 유지된다.
+     (Phase 116 은 고정 px 로 박아 역효과였음 — 여기서는 scale 로 나눠 정확히 계산) */
+  #taModalBox,
+  #quickAddModalBox,
+  .confirm-box,
+  #exifModalBox,
+  #styleModalBox,
+  #charPresetModalBox,
+  #cpAddModalBox,
+  #cpGalleryPickerBox,
+  #simplePresetModalBox,
+  #simplePresetAddBox,
+  #posGridBox,
+  #slotStatusBox,
+  #fileMgrBox,
+  #dataManageBox,
+  #sqModalBox,
+  #artistMixBox{
+    max-width:  calc(92vw / var(--ui-scale));
+    max-height: calc(88vh / var(--ui-scale));
   }
   /* cfg-panel 은 우상단 기준 (버튼 우측 정렬) */
   #cfg-panel{
     transform: scale(var(--ui-scale));
     transform-origin: top right;
+    max-height: calc(88vh / var(--ui-scale));
   }
 
   /* Phase 118 — Phase 116 의 max-width/max-height 박은 거 제거.
@@ -3929,6 +4008,7 @@ body.nw-swap-mode .nw-shelf-card{opacity:.4; pointer-events:none;}
         <div class="pp-actions" onclick="event.stopPropagation()">
           <span id="activeStyleIndicator" style="display:none;font-size:10px;color:var(--acc);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100px;flex-shrink:1;" title="적용된 그림체"></span>
           <button class="pp-icon-btn" id="styleModalBtn" data-tour-key="prompt.style" onclick="openStyleModal()" title="그림체 프리셋 (길게 눌러 해제)">🎨</button>
+          <button class="pp-icon-btn" id="artistMixBtn" onclick="openArtistMix()" title="작가 태그 편집기">🖌</button>
           <button class="pp-icon-btn" onclick="clearTa('basePrompt')" title="이 입력공간 비우기">🗑</button>
         </div>
       </div>
@@ -4821,6 +4901,45 @@ body.nw-swap-mode .nw-shelf-card{opacity:.4; pointer-events:none;}
       <div class="pos-free-wrap" id="posFreeWrap" style="display:none;"></div>
       <div id="posGridVal">x:0.5 y:0.5</div>
       <div id="posGridHint">중앙(●) = 자동 배치 · 같은 셀 재클릭 시 닫힘</div>
+    </div>
+  </div>
+</div>
+
+<!-- Phase 153 — 작가 태그 편집기 -->
+<div id="artistMixModal" data-ov-click-root="1" onclick="_overlayClick(event, ()=>closeArtistMix())">
+  <div id="artistMixBox" onclick="event.stopPropagation()">
+    <div id="artistMixHdr">
+      <span style="font-size:12px;font-weight:600;letter-spacing:.12em;color:var(--t2);">🖌 작가 태그 편집기</span>
+      <button class="btn btn-ghost btn-sm" onclick="closeArtistMix()" style="height:26px;padding:0 9px;">✕</button>
+    </div>
+    <div id="artistMixBody">
+      <div class="am-sec-lbl"><span>불러오기</span></div>
+      <div style="display:flex;gap:4px;">
+        <button class="btn btn-ghost btn-sm" onclick="amOpenStylePick()" style="flex:1;height:28px;font-size:11px;" title="그림체 프리셋에서 작가 추출">🎨 그림체에서 가져오기</button>
+      </div>
+      <div style="display:flex;gap:4px;">
+        <input class="inp" id="amPasteIn" type="text" placeholder="프롬프트 붙여넣기 (작가만 추출)" style="flex:1;min-width:0;height:28px;font-size:11px;">
+        <button class="btn btn-ghost btn-sm" onclick="amFromPaste()" style="height:28px;padding:0 10px;font-size:11px;">📋 추출</button>
+      </div>
+
+      <div class="am-sec-lbl" style="margin-top:4px;"><span>작가 목록</span><span id="amCount" style="color:var(--t3);">0명</span></div>
+      <div class="am-list" id="amList"></div>
+      <button class="btn btn-ghost btn-sm" onclick="amAddBlank()" style="width:100%;height:28px;font-size:11px;">＋ 작가 추가</button>
+
+      <div class="am-sec-lbl" style="margin-top:4px;"><span>적용 문구</span></div>
+      <div class="am-phrases" id="amPhrases"></div>
+      <div style="display:flex;gap:4px;">
+        <input class="inp" id="amNewPhrase" type="text" placeholder="예: color like" style="flex:1;height:28px;font-size:11px;">
+        <button class="btn btn-ghost btn-sm" onclick="amAddPhrase()" style="height:28px;padding:0 10px;font-size:11px;">추가</button>
+      </div>
+
+      <div class="am-sec-lbl" style="margin-top:4px;"><span>결과 미리보기</span></div>
+      <textarea class="inp am-out" id="amOut" readonly spellcheck="false"></textarea>
+      <div style="font-size:10px;color:var(--t3);line-height:1.5;">작가 태그만 교체되고 나머지 프롬프트는 그대로 유지됩니다.</div>
+    </div>
+    <div id="artistMixFoot">
+      <button class="btn btn-ghost btn-sm" onclick="amCopy()" style="flex:1;height:30px;font-size:11px;">📋 복사</button>
+      <button class="btn btn-acc btn-sm" onclick="amApply()" style="flex:2;height:30px;font-size:11px;">프롬프트에 반영</button>
     </div>
   </div>
 </div>
@@ -7290,6 +7409,281 @@ function closePosGrid(){
   _posCharIdx = -1;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   Phase 153 — 작가 태그 편집기 (Artist Mixer)
+   ─ 기본 프롬프트(pp-pos)에서 작가 태그만 골라 편집 → 제자리 교체.
+   ─ 작가 판정: `artist:` 접두어가 있거나 등록된 적용문구로 시작하는 항목.
+     그 외 태그(character image, year 2025, 0.5::a, b, c:: 등)는 건드리지 않음.
+   ─ 반영은 "전체 재조립"이 아니라 "원본에서 해당 조각만 치환" → 묶음 태그 파손 방지.
+   ═══════════════════════════════════════════════════════════════ */
+const AM_LS = 'naim_artist_phrases';
+const AM_DEFAULT_PHRASES = ['draw body like','paint like','draw pupil like','draw face like','draw eyes like','draw hair like'];
+let _amPhrases = [...AM_DEFAULT_PHRASES];
+let _amRows = [];          // {id, raw, weight, name, phrase, hasPrefix, enabled}
+let _amSrc = '';           // 편집 시작 시점의 원본 프롬프트
+let _amDragId = null, _amDropId = null, _amDropAfter = false;
+
+function _amId(){ return 'am' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+function _amEsc(v){ return String(v).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function _amLoadPhrases(){
+  try{ const r = JSON.parse(localStorage.getItem(AM_LS)); if(Array.isArray(r) && r.length) _amPhrases = r; }catch{}
+}
+function _amSavePhrases(){ try{ localStorage.setItem(AM_LS, JSON.stringify(_amPhrases)); }catch{} }
+
+/* 원본을 쉼표로 나눠 각 조각을 검사. 작가 조각만 _amRows 로 추출(raw = 원본 조각 그대로 보관). */
+function _amParse(src){
+  const rows = [];
+  src.split(',').forEach(chunk=>{
+    const t = chunk.trim();
+    if(!t) return;
+    // 가중치 형식 1.5::내용:: 또는 평문
+    const m = t.match(/^\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*::\s*([\s\S]*?)\s*::\s*$/);
+    let weight = m ? m[1] : '1';
+    let content = (m ? m[2] : t).trim();
+    if(!content) return;
+    // 적용문구 검사
+    let phrase = _amPhrases.find(p => content.toLowerCase().startsWith(p.toLowerCase() + ' ')) || '';
+    let rest = phrase ? content.slice(phrase.length).trim() : content;
+    const hasPrefix = /^artist\s*:/i.test(rest);
+    // 작가 판정: artist: 접두어 또는 적용문구로 시작하는 것만
+    if(!hasPrefix && !phrase) return;
+    const name = rest.replace(/^artist\s*:\s*/i, '').trim();
+    if(!name) return;
+    rows.push({ id:_amId(), raw:chunk, weight, name, phrase, hasPrefix, enabled:true });
+  });
+  return rows;
+}
+/* 행 하나 → 프롬프트 조각 문자열 */
+function _amRowStr(a){
+  const body = [a.phrase.trim(), (a.hasPrefix ? 'artist:' : '') + a.name.trim()].filter(Boolean).join(' ');
+  return `${(a.weight || '').trim() || '1'}::${body}::`;
+}
+/* 결과 프롬프트: 원본에서 작가 조각만 치환(순서 변경/삭제 반영), 나머지는 원위치 유지 */
+function _amBuild(){
+  const parts = _amSrc.split(',');
+  const rawToRow = new Map();
+  _amRows.forEach(r => { if(r.raw !== undefined && !rawToRow.has(r.raw)) rawToRow.set(r.raw, r); });
+  const used = new Set();
+  const out = [];
+  let injected = false;
+  parts.forEach(chunk=>{
+    const isArtist = _amRows.some(r => r.raw === chunk) || _amParse(chunk).length > 0;
+    if(!isArtist){ out.push(chunk); return; }
+    // 첫 작가 자리에 편집된 작가 전체를 순서대로 삽입, 나머지 작가 자리는 제거
+    if(!injected){
+      injected = true;
+      _amRows.filter(r => r.enabled && r.name.trim()).forEach(r => out.push(' ' + _amRowStr(r)));
+    }
+  });
+  // 원본에 작가가 없었으면 맨 앞에 추가
+  if(!injected){
+    const add = _amRows.filter(r => r.enabled && r.name.trim()).map(r => _amRowStr(r));
+    if(add.length) return add.join(', ') + (_amSrc.trim() ? ', ' + _amSrc.trim() : '');
+  }
+  return out.join(',').replace(/^\s*,\s*/, '').replace(/,\s*,/g, ',');
+}
+function _amUpdate(){
+  const out = document.getElementById('amOut');
+  if(out) out.value = _amBuild();
+  const cnt = document.getElementById('amCount');
+  if(cnt) cnt.textContent = _amRows.length + '명';
+}
+function _amRenderPhrases(){
+  const host = document.getElementById('amPhrases');
+  if(!host) return;
+  host.innerHTML = _amPhrases.map((p,i)=>
+    `<span class="am-chip">${_amEsc(p)}<button onclick="amDelPhrase(${i})" title="삭제">✕</button></span>`
+  ).join('');
+}
+function _amRenderRows(){
+  const host = document.getElementById('amList');
+  if(!host) return;
+  if(!_amRows.length){
+    host.innerHTML = '<div class="am-empty">프롬프트에서 작가 태그를 찾지 못했습니다.<br>artist: 가 붙었거나 적용 문구로 시작하는 태그만 인식합니다.</div>';
+    _amUpdate(); return;
+  }
+  const opts = (sel)=> ['<option value="">적용 안 함</option>']
+    .concat(_amPhrases.map(p => `<option value="${_amEsc(p)}"${p===sel?' selected':''}>${_amEsc(p)}</option>`))
+    .join('');
+  host.innerHTML = _amRows.map((a,i)=>`<div class="am-row${a.enabled?'':' off'}" data-id="${a.id}">
+    <button class="am-handle" title="드래그로 순서 변경">⠿</button>
+    <div class="am-w"><button onclick="amStep('${a.id}',-1)">−</button><input value="${_amEsc(a.weight)}" oninput="amSet('${a.id}','weight',this.value)"><button onclick="amStep('${a.id}',1)">＋</button></div>
+    <div class="am-name"><button class="am-prefix${a.hasPrefix?'':' off'}" onclick="amPrefix('${a.id}')" title="artist: 접두어">${a.hasPrefix?'artist:':'name:'}</button><input class="inp" value="${_amEsc(a.name)}" oninput="amSet('${a.id}','name',this.value)"></div>
+    <select class="inp" onchange="amSet('${a.id}','phrase',this.value)">${opts(a.phrase)}</select>
+    <label class="toggle-switch" style="transform:scale(.62);transform-origin:center;"><input type="checkbox"${a.enabled?' checked':''} onchange="amSet('${a.id}','enabled',this.checked)"><span class="toggle-slider"></span></label>
+    <button class="am-del" onclick="amDel('${a.id}')" title="삭제">✕</button>
+  </div>`).join('');
+  _amBindDrag();
+  _amUpdate();
+}
+function _amFind(id){ return _amRows.find(r => r.id === id); }
+function amSet(id, k, v){
+  const r = _amFind(id); if(!r) return;
+  r[k] = v;
+  if(k === 'enabled'){ const row = document.querySelector(`.am-row[data-id="${id}"]`); if(row) row.classList.toggle('off', !v); }
+  _amUpdate();
+}
+function amStep(id, dir){
+  const r = _amFind(id); if(!r) return;
+  const cur = parseFloat(r.weight);
+  const base = isFinite(cur) ? cur : 1;
+  r.weight = String(Math.max(-99, Math.min(99, Math.round((base + dir * 0.1) * 10) / 10)));
+  const row = document.querySelector(`.am-row[data-id="${id}"] .am-w input`);
+  if(row) row.value = r.weight;
+  _amUpdate();
+}
+function amPrefix(id){
+  const r = _amFind(id); if(!r) return;
+  r.hasPrefix = !r.hasPrefix;
+  const b = document.querySelector(`.am-row[data-id="${id}"] .am-prefix`);
+  if(b){ b.textContent = r.hasPrefix ? 'artist:' : 'name:'; b.classList.toggle('off', !r.hasPrefix); }
+  _amUpdate();
+}
+function amDel(id){
+  const i = _amRows.findIndex(r => r.id === id);
+  if(i >= 0){ _amRows.splice(i,1); _amRenderRows(); }
+}
+function amAddBlank(){
+  _amRows.push({ id:_amId(), raw:undefined, weight:'1', name:'', phrase:'', hasPrefix:true, enabled:true });
+  _amRenderRows();
+}
+function amAddPhrase(){
+  const el = document.getElementById('amNewPhrase');
+  const v = (el?.value || '').trim();
+  if(!v) return;
+  if(_amPhrases.some(p => p.toLowerCase() === v.toLowerCase())){ NAIM.toast('이미 있는 문구', 'err'); return; }
+  _amPhrases.push(v); _amSavePhrases(); el.value = '';
+  _amRenderPhrases(); _amRenderRows();
+}
+function amDelPhrase(i){
+  const old = _amPhrases.splice(i,1)[0];
+  _amPhrases = _amPhrases.length ? _amPhrases : [...AM_DEFAULT_PHRASES];
+  _amSavePhrases();
+  _amRows.forEach(r => { if(r.phrase === old) r.phrase = ''; });
+  _amRenderPhrases(); _amRenderRows();
+}
+/* 드래그 순서 변경 (포인터 이벤트 — 터치 포함) */
+function _amBindDrag(){
+  const host = document.getElementById('amList');
+  if(!host || host._amBound) return;
+  host._amBound = true;
+  host.addEventListener('pointerdown', e=>{
+    const h = e.target.closest('.am-handle'); if(!h) return;
+    e.preventDefault();
+    const row = h.closest('.am-row');
+    _amDragId = row.dataset.id; _amDropId = null;
+    row.classList.add('dragging');
+    h.setPointerCapture?.(e.pointerId);
+  });
+  host.addEventListener('pointermove', e=>{
+    if(!_amDragId) return;
+    e.preventDefault();
+    host.querySelectorAll('.drop-before,.drop-after').forEach(x=>x.classList.remove('drop-before','drop-after'));
+    const hit = document.elementFromPoint(e.clientX, e.clientY);
+    const row = hit && hit.closest('.am-row');
+    if(!row || row.dataset.id === _amDragId){ _amDropId = null; return; }
+    const r = row.getBoundingClientRect();
+    _amDropId = row.dataset.id;
+    _amDropAfter = e.clientY > r.top + r.height / 2;
+    row.classList.add(_amDropAfter ? 'drop-after' : 'drop-before');
+  });
+  const end = ()=>{
+    if(_amDragId && _amDropId && _amDragId !== _amDropId){
+      const from = _amRows.findIndex(r => r.id === _amDragId);
+      const [moved] = _amRows.splice(from, 1);
+      const to = _amRows.findIndex(r => r.id === _amDropId) + (_amDropAfter ? 1 : 0);
+      _amRows.splice(to, 0, moved);
+      _amDragId = _amDropId = null;
+      _amRenderRows();
+      return;
+    }
+    _amDragId = _amDropId = null;
+    host.querySelectorAll('.dragging,.drop-before,.drop-after').forEach(x=>x.classList.remove('dragging','drop-before','drop-after'));
+  };
+  host.addEventListener('pointerup', end);
+  host.addEventListener('pointercancel', end);
+}
+/* 그림체에서 가져오기 — 기존 그림체 모달을 "작가 추출 모드"로 재활용.
+   별도 창을 만들지 않고 openStyleModal() 을 그대로 쓰되, 편집 계열 UI 를 숨기고
+   카드 클릭을 applyStyle 대신 작가 추출로 라우팅한다(_amPickMode 플래그). */
+let _amPickMode = false;
+function amOpenStylePick(){
+  const list = (typeof getStyles === 'function') ? getStyles() : [];
+  if(!list.length){ NAIM.toast('저장된 그림체가 없습니다', 'err'); return; }
+  _amPickMode = true;
+  document.body.classList.add('am-pick-mode');
+  if(typeof openStyleModal === 'function') openStyleModal();
+  NAIM.toast('작가를 가져올 그림체를 선택하세요', 'ok');
+}
+function amExitStylePick(){
+  _amPickMode = false;
+  document.body.classList.remove('am-pick-mode');
+}
+window.amOpenStylePick = amOpenStylePick;
+window.amExitStylePick = amExitStylePick;
+/* 텍스트에서 작가를 추출해 목록에 이어붙임. 이름 중복은 건너뜀. */
+function _amAppendFrom(text, label){
+  const found = _amParse(text || '');
+  if(!found.length){ NAIM.toast('작가 태그를 찾지 못했습니다', 'err'); return; }
+  const have = new Set(_amRows.map(r => (r.name || '').trim().toLowerCase()));
+  let added = 0;
+  found.forEach(r=>{
+    const key = (r.name || '').trim().toLowerCase();
+    if(!key || have.has(key)) return;
+    have.add(key);
+    r.raw = undefined;          // 원본 조각과 무관 — 새로 추가된 작가
+    _amRows.push(r);
+    added++;
+  });
+  _amRenderRows();
+  NAIM.toast(added ? `${label} ${added}명 추가` : '이미 모두 있습니다', added ? 'ok' : 'err');
+}
+function amFromPaste(){
+  const el = document.getElementById('amPasteIn');
+  const txt = (el?.value || '').trim();
+  if(!txt){ NAIM.toast('붙여넣을 내용을 입력하세요', 'err'); return; }
+  _amAppendFrom(txt, '붙여넣기로');
+  if(el) el.value = '';
+}
+window.amFromPaste = amFromPaste;
+
+function openArtistMix(){
+  _amLoadPhrases();
+  const ta = document.getElementById('pp-pos');
+  _amSrc = ta ? (ta.value || '') : '';
+  _amRows = _amParse(_amSrc);
+  _amRenderPhrases();
+  _amRenderRows();
+  const m = document.getElementById('artistMixModal');
+  if(m) m.classList.add('open');
+}
+function closeArtistMix(){
+  const m = document.getElementById('artistMixModal');
+  if(m) m.classList.remove('open');
+}
+function amCopy(){
+  const out = document.getElementById('amOut');
+  if(!out || !out.value){ NAIM.toast('복사할 내용 없음', 'err'); return; }
+  try{ navigator.clipboard.writeText(out.value); }
+  catch{ out.removeAttribute('readonly'); out.select(); document.execCommand('copy'); out.setAttribute('readonly',''); }
+  NAIM.toast('복사됨', 'ok');
+}
+function amApply(){
+  const ta = document.getElementById('pp-pos');
+  if(!ta) return;
+  ta.value = _amBuild();
+  ta.dispatchEvent(new Event('input', {bubbles:true}));
+  if(typeof saveSettings === 'function') saveSettings();
+  NAIM.toast('프롬프트에 반영됨', 'ok');
+  closeArtistMix();
+}
+window.openArtistMix = openArtistMix;
+window.closeArtistMix = closeArtistMix;
+window.amSet = amSet; window.amStep = amStep; window.amPrefix = amPrefix;
+window.amDel = amDel; window.amAddBlank = amAddBlank;
+window.amAddPhrase = amAddPhrase; window.amDelPhrase = amDelPhrase;
+window.amCopy = amCopy; window.amApply = amApply;
+
 /* Phase 152 — 좌표 설정 모드 (전역 진입).
    슬롯별 📍 대신 여기서 캐릭터를 골라가며 캔버스에 직접 찍는다.
    활성 슬롯이 없으면 안내만. V5 가 아니면 기존 격자 방식으로 첫 슬롯을 연다. */
@@ -7546,6 +7940,7 @@ function closeStyleModal(){
   if(hp) hp.style.display = 'none';
   // 모달 닫으면 수정 모드 해제 + 집기/정렬 완전 정리
   if(_styleEditMode) toggleStyleEditMode();
+  if(typeof amExitStylePick === 'function') amExitStylePick();
   if(window.__naimClearSwap) window.__naimClearSwap();
   document.querySelectorAll('.sort-mode').forEach(h => h.classList.remove('sort-mode'));
   document.querySelectorAll('.swap-pick').forEach(c => c.classList.remove('swap-pick'));
@@ -7842,6 +8237,13 @@ function applyStyle(idx){
   const list = getStyles();
   const p = list[idx];
   if(!p) return;
+  // Phase 153 — 작가 추출 모드: 적용 대신 이 프리셋에서 작가만 뽑아 편집기로 보낸다.
+  if(typeof _amPickMode !== 'undefined' && _amPickMode){
+    if(typeof closeStyleModal === 'function') closeStyleModal();
+    amExitStylePick();
+    _amAppendFrom(p.prompt || '', '그림체에서');
+    return;
+  }
   // 같은 거 다시 누르면 해제
   if(_activeStyleName === p.name){
     clearActiveStyle();
